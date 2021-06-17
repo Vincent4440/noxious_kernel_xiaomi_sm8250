@@ -1593,12 +1593,12 @@ skip_clk_reset:
 						dma_ipc_log_ctx_name, 0);
 	if (!dwc->dwc_dma_ipc_log_ctxt)
 		dev_err(dwc->dev, "Error getting ipc_log_ctxt for ep_events\n");
-
-	dwc3_instance[count] = dwc;
+		
+        dwc3_instance[count] = dwc;
 	dwc->index = count;
 	count++;
-
-	pm_runtime_allow(dev);
+	
+	pm_runtime_put(dev);
 	dwc3_debugfs_init(dwc);
 	return 0;
 
