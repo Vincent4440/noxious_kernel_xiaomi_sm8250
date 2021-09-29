@@ -472,11 +472,14 @@ struct sock {
 	u32			sk_ack_backlog;
 	u32			sk_max_ack_backlog;
 	kuid_t			sk_uid;
+#if IS_ENABLED(CONFIG_DEBUG_SPINLOCK) || IS_ENABLED(CONFIG_DEBUG_LOCK_ALLOC)
+	spinlock_t		sk_peer_lock;
 #if IS_ENABLED(CONFIG_MIHW)
 	pid_t			pid_num;
 #endif
 	struct pid		*sk_peer_pid;
 	const struct cred	*sk_peer_cred;
+
 	long			sk_rcvtimeo;
 	ktime_t			sk_stamp;
 #if BITS_PER_LONG==32
