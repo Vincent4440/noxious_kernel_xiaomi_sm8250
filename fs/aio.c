@@ -1774,6 +1774,7 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 		 * not actually be complete yet (we won't know until vfs_poll()
 		 * is called), and we must not miss any wakeups.  POLLFREE is an
 		 * exception to this; see below.
+		 * is called), and we must not miss any wakeups.
 		 */
 		if (req->work_scheduled) {
 			req->work_need_resched = true;
