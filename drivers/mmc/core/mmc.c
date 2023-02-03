@@ -2487,7 +2487,6 @@ static void mmc_detect(struct mmc_host *host)
 	}
 }
 
-<<<<<<< HEAD
 static int mmc_cache_card_ext_csd(struct mmc_host *host)
 {
 	int err;

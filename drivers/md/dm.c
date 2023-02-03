@@ -947,11 +947,6 @@ void disable_write_zeroes(struct mapped_device *md)
 	limits->max_write_zeroes_sectors = 0;
 }
 
-static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
-{
-	return unlikely((bio->bi_opf & REQ_SWAP) != 0) && unlikely(ti->limit_swap_bios);
-}
-
 static void clone_endio(struct bio *bio)
 {
 	blk_status_t error = bio->bi_status;
@@ -987,11 +982,6 @@ static void clone_endio(struct bio *bio)
 			DMWARN("unimplemented target endio return value: %d", r);
 			BUG();
 		}
-	}
-
-	if (unlikely(swap_bios_limit(tio->ti, bio))) {
-		struct mapped_device *md = io->md;
-		up(&md->swap_bios_semaphore);
 	}
 
 	free_tio(tio);
@@ -1272,22 +1262,6 @@ void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
 }
 EXPORT_SYMBOL_GPL(dm_remap_zone_report);
 
-static noinline void __set_swap_bios_limit(struct mapped_device *md, int latch)
-{
-	mutex_lock(&md->swap_bios_lock);
-	while (latch < md->swap_bios) {
-		cond_resched();
-		down(&md->swap_bios_semaphore);
-		md->swap_bios--;
-	}
-	while (latch > md->swap_bios) {
-		cond_resched();
-		up(&md->swap_bios_semaphore);
-		md->swap_bios++;
-	}
-	mutex_unlock(&md->swap_bios_lock);
-}
-
 static blk_qc_t __map_bio(struct dm_target_io *tio)
 {
 	int r;
@@ -1308,14 +1282,6 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
 	atomic_inc(&io->io_count);
 	sector = clone->bi_iter.bi_sector;
 
-	if (unlikely(swap_bios_limit(ti, clone))) {
-		struct mapped_device *md = io->md;
-		int latch = get_swap_bios();
-		if (unlikely(latch != md->swap_bios))
-			__set_swap_bios_limit(md, latch);
-		down(&md->swap_bios_semaphore);
-	}
-
 	r = ti->type->map(ti, clone);
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
@@ -1330,18 +1296,10 @@ static blk_qc_t __map_bio(struct dm_target_io *tio)
 			ret = generic_make_request(clone);
 		break;
 	case DM_MAPIO_KILL:
-		if (unlikely(swap_bios_limit(ti, clone))) {
-			struct mapped_device *md = io->md;
-			up(&md->swap_bios_semaphore);
-		}
 		free_tio(tio);
 		dec_pending(io, BLK_STS_IOERR);
 		break;
 	case DM_MAPIO_REQUEUE:
-		if (unlikely(swap_bios_limit(ti, clone))) {
-			struct mapped_device *md = io->md;
-			up(&md->swap_bios_semaphore);
-		}
 		free_tio(tio);
 		dec_pending(io, BLK_STS_DM_REQUEUE);
 		break;
